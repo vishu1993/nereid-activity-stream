@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tryton>
+    <data>
+        
+        <record model="ir.ui.view" id="graduit_nereid_user_activity_view_form">
+            <field name="model">nereid.user</field>
+            <field name="inherit" ref="nereid.nereid_user_form2"/>
+            <field name="arch" type="xml">
+                <![CDATA[
+                  <data>
+                    <xpath expr="//page[@id=&quot;permissions&quot;]" position="after">
+                        <page string="Activity Stream" id="activity">
+                            <field name="activities"/>
+                        </page>
+                   </xpath>                      
+                 </data>
+               ]]>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="nereid_activity_stream_view_form">
+            <field name="model">nereid.activity</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <form string="Activity Stream">
+                    <label name="actor"/>
+                    <field name="actor"/>
+                    <label name="verb"/>
+                    <field name="verb"/>
+                    <label name="object_"/>
+                    <field name="object_"/>
+                    <label name="target"/>
+                    <field name="target"/>
+                    <label name="create_date"/>
+                    <field name="create_date"/>
+                </form>
+                ]]>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="nereid_activity_stream_tree">
+            <field name="model">nereid.activity</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <tree string="Activity Stream">
+                    <field name="actor"/>
+                    <field name="verb"/>
+                    <field name="object_"/>
+                    <field name="target"/>
+                    <field name="create_date"/>
+                </tree>
+                ]]>
+            </field>
+        </record>
+                   
+        <record model="ir.ui.view" id="nereid_activity_stream_object_tree">
+            <field name="model">nereid.activity.allowed_model</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <tree string="Activity Allowed Model">
+                    <field name="name"/>
+                    <field name="model"/>
+                </tree>
+                ]]>
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="nereid_activity_stream_object_view_form">
+            <field name="model">nereid.activity.allowed_model</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <form string="Activity Allowed Model">
+                    <label name="name"/>
+                    <field name="name"/>
+                    <label name="model"/>
+                    <field name="model"/>
+                </form>
+                ]]>
+            </field>
+        </record>
+
+        <record model="ir.action.act_window"
+                id="act_nereid_activity_stream_object_view_form">
+            <field name="name">Activity Allowed Model</field>
+            <field name="res_model">nereid.activity.allowed_model</field>
+        </record>
+
+        <record model="ir.action.act_window.view"
+                id="act_nereid_activity_stream_object_view_form1">
+            <field name="sequence" eval="2"/>
+            <field name="view" ref="nereid_activity_stream_object_view_form"/>
+            <field name="act_window" ref="act_nereid_activity_stream_object_view_form"/>
+        </record>
+
+        <record model="ir.action.act_window.view"
+                id="act_nereid_activity_stream_object_view_form2">
+            <field name="sequence" eval="1"/>
+            <field name="view" ref="nereid_activity_stream_object_tree"/>
+            <field name="act_window" ref="act_nereid_activity_stream_object_view_form"/>
+        </record>
+
+        <menuitem name="Activity Stream "
+            parent="nereid.menu_nereid"
+            id="menu_nereid_activity_stream_object"
+            sequence="120"/>
+
+        <menuitem parent="menu_nereid_activity_stream_object"
+            action="act_nereid_activity_stream_object_view_form"
+            id="menu_nereid_activity_stream_object_list"
+            sequence="20" icon="tryton-list"/>
+    </data>
+</tryton>
