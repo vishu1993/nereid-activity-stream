@@ -32,8 +32,7 @@ class XMLTests(Command):
             source=["trytond.modules.nereid_activity_stream"]
         )
         cov.start()
-        #from tests import suite
-        from nereid_activity_stream.tests import suite
+        from tests import suite
         xmlrunner.XMLTestRunner(output="xml-test-results").run(suite())
         cov.stop()
         cov.save()
