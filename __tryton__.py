@@ -12,6 +12,7 @@
     ],
     'xml': [
         "activity_stream.xml",
+        "urls.xml",
     ],
     'translation': [
     ],
