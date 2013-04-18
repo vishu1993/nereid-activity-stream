@@ -6,11 +6,13 @@
     :license: GPLv3, see LICENSE for more details.
 """
 import sys
+import json
 import os
 DIR = os.path.abspath(os.path.normpath(os.path.join(__file__,
     '..', '..', '..', '..', '..', 'trytond')))
 if os.path.isdir(DIR):
     sys.path.insert(0, os.path.dirname(DIR))
+from dateutil import parser
 
 import unittest
 import trytond.tests.test_tryton
@@ -19,8 +21,10 @@ from trytond.tests.test_tryton import POOL, CONTEXT, USER, DB_NAME
 from trytond.transaction import Transaction
 from trytond.exceptions import UserError
 
+from nereid.testing import NereidTestCase
 
-class ActivityTestCase(unittest.TestCase):
+
+class ActivityTestCase(NereidTestCase):
     '''
     Test Nereid Activity
     '''
@@ -34,6 +38,9 @@ class ActivityTestCase(unittest.TestCase):
         self.currency_obj = POOL.get('currency.currency')
         self.activity_allowed_model_obj = POOL.get('nereid.activity.allowed_model')
         self.model_obj = POOL.get('ir.model')
+        self.url_map_obj = POOL.get('nereid.url_map')
+        self.language_obj = POOL.get('ir.lang')
+        self.nereid_website_obj = POOL.get('nereid.website')
 
     def test0005views(self):
         '''
@@ -49,8 +56,45 @@ class ActivityTestCase(unittest.TestCase):
 
     def setup_defaults(self):
         '''
-        Cretae User.
+        Setting Defaults for Test Nereid Activity Stream
         '''
+        usd = self.currency_obj.create({
+            'name': 'US Dollar',
+            'code': 'USD',
+            'symbol': '$',
+        })
+        company_id = self.company_obj.create({
+            'name': 'Openlabs',
+            'currency': usd
+        })
+        guest_user = self.nereid_user_obj.create({
+            'name': 'Guest User',
+            'display_name': 'Guest User',
+            'email': 'guest@openlabs.co.in',
+            'password': 'password',
+            'company': company_id,
+        })
+        self.registered_user_id = self.nereid_user_obj.create({
+            'name': 'Registered User',
+            'display_name': 'Registered User',
+            'email': 'email@example.com',
+            'password': 'password',
+            'company': company_id,
+        })
+
+        # Create website
+        url_map_id, = self.url_map_obj.search([], limit=1)
+        en_us, = self.language_obj.search([('code', '=', 'en_US')])
+        self.nereid_website_obj.create({
+            'name': 'localhost',
+            'url_map': url_map_id,
+            'company': company_id,
+            'application_user': USER,
+            'default_language': en_us,
+            'guest_user': guest_user,
+            'currencies': [('set', [usd])],
+        })
+
 
         self.user_party = self.party_obj.create({
             'name': 'User1',
@@ -146,6 +190,60 @@ class ActivityTestCase(unittest.TestCase):
                 self.activity_obj.browse(activity) in \
                 user.activities
             )
+
+
+    def test0020_stream(self):
+        '''
+        Serialize Activity Stream
+        '''
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            app = self.get_app()
+
+            party_model_id, = self.model_obj.search([
+                ('model', '=', 'party.party')
+            ])
+
+            activity_object = self.activity_allowed_model_obj.create({
+                'name': 'Party',
+                'model': party_model_id,
+            })
+
+            # Create 3 Activities
+            activity1 = self.activity_obj.create({
+                'verb': 'Added a new friend',
+                'actor': self.nereid_user_actor,
+                'object_': 'party.party,%s' % self.user_party,
+            })
+
+            activity2 = self.activity_obj.create({
+                'verb': 'Added a friend to a list',
+                'actor': self.nereid_user_actor,
+                'object_': 'party.party,%s' % self.user_party,
+                'target': 'party.party,%s' % self.user_party,
+            })
+
+            activity3 = self.activity_obj.create({
+                'verb': 'Added a new friend',
+                'actor': self.nereid_user_actor,
+                'object_': 'party.party,%s' % self.user_party,
+            })
+
+            with app.test_client() as c:
+                # Stream Length Count
+                rv = c.get('en_US/user/activity-stream')
+                rv_json = json.loads(rv.data)
+                self.assertEqual(rv_json['totalItems'], 3)
+
+                # Stream Items Length
+                self.assertEqual(len(rv_json['items']), 3)
+
+                # Activity Publish Order
+                pub_dates = map(
+                    lambda x: parser.parse(x['published']),
+                    rv_json['items'],
+                )
+                self.assertTrue(pub_dates[2] < pub_dates[1] < pub_dates[0])
 
 
 def suite():

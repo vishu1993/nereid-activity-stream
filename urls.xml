@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tryton>
+    <data>
+        <record id="stream" model="nereid.url_rule">
+            <field name="rule">/&lt;language&gt;/user/activity-stream</field>
+            <field name="endpoint">nereid.activity.stream</field>
+            <field name="sequence" eval="50" />
+            <field name="http_method_get" eval="True"/>
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
+    </data>
+</tryton>
+

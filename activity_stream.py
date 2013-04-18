@@ -10,7 +10,7 @@
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.pool import Pool
 
-from nereid import url_for
+from nereid import request, url_for, jsonify
 
 
 class NereidUser(ModelSQL, ModelView):
@@ -57,6 +57,19 @@ class Activity(ModelSQL, ModelView):
             res.append((allowed_model.model.model, allowed_model.name))
         return res
 
+    def _serialize_actor(self, activity):
+        """
+        Serialize the actor alone and return a dictionary. This is separated
+        so that other modules can easily modify the behavior independent of
+        this modules
+        """
+        return {
+            "url": None,  # by default there is no way to expose user
+            "objectType": "nereid.user",
+            "id": activity.actor.id,
+            "displayName": activity.actor.display_name,
+        }
+
     def serialize(self, activity):
         '''Return a JSON Seralizable dictionary that could be stored in a
         cache and sent by XHR.
@@ -69,41 +82,63 @@ class Activity(ModelSQL, ModelView):
         :param activity: Browse record of activity
         '''
         json = {
-            "published": str(activity.create_date),
-            "actor": {
-                "url": url_for(
-                    'nereid.user.user_profile',
-                    username=activity.actor.username
-                ),
-                "objectType": "nereid.user",
-                "id": activity.actor.id,
-                "image": {
-                    "url": activity.actor.get_profile_picture(
-                        activity.actor,
-                        size=50, https=True
-                    ),
-                    "width": 50,
-                    "height": 50,
-                },
-                "displayName": activity.actor.display_name,
-            },
+            "published": activity.create_date.isoformat(),
+            "actor": self._serialize_actor(activity),
             "verb": activity.verb,
-            "object": {
-                "url": activity.object_.url,
-                "id": activity.object_.id,
-                "objectType": activity.object_.model.model,
-                "displayName": activity.object_.rec_name,
-            },
         }
+
+        # Split the reference field data and get a browse record
+        # for it.
+        object_model = activity.object_.split(',')[0]
+        object_id = int(activity.object_.split(',')[1])
+
+        object_ = Pool().get(object_model).browse(object_id)
+        json["object"] = {
+            "url": hasattr(object_, 'url') and object_.url or None,
+            "id": object_.id,
+            "objectType": object_model,
+            "displayName": object_.rec_name,
+        }
+
         if activity.target:
+            # Split the reference field data and get a browse record
+            # for it.
+            target_model = activity.target.split(',')[0]
+            target_id = int(activity.target.split(',')[1])
+
+            target = Pool().get(target_model).browse(target_id)
             json["target"] = {
-                "url": activity.target.url,
-                "objectType": activity.object_.model.model,
-                "id": activity.target.id,
-                "displayName": activity.target.rec_name,
+                "url": hasattr(target, 'url') and target.url or None,
+                "objectType": target_model,
+                "id": target_id,
+                "displayName": target.rec_name,
             }
 
         return json
+
+    def get_activity_stream_domain(self):
+        '''Returns the domain to get activity stream
+        '''
+        return []
+
+    def stream(self):
+        '''Return JSON Serialized Activity Stream to XHR.
+        As defined by the activity stream json specification 1.0
+        http://activitystrea.ms/specs/json/1.0/
+        '''
+        offset = request.args.get('offset', 0, int)
+        limit = request.args.get('limit', 100, int)
+
+        ids = self.search(
+            self.get_activity_stream_domain(),
+            limit=limit, offset=offset,
+            order=[('create_date', 'DESC')]
+        )
+
+        return jsonify({
+            'totalItems': len(ids),
+            'items': map(lambda x: self.serialize(x), self.browse(ids)),
+        })
 
 Activity()
 
@@ -119,5 +154,14 @@ class ActivityAllowedModel(ModelSQL, ModelView):
 
     name = fields.Char("Name", required=True, select=True)
     model = fields.Many2One('ir.model', 'Model', required=True, select=True)
+
+    def __init__(self):
+        super(ActivityAllowedModel, self).__init__()
+        self._sql_constraints += [
+            ('unique_model', 'UNIQUE(model)',
+                'Name is already used.'),
+            ('unique_name', 'UNIQUE(name)',
+                'Model is already used.'),
+            ]
 
 ActivityAllowedModel()
