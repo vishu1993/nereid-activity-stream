@@ -44,6 +44,27 @@ class Activity(ModelSQL, ModelView):
     target = fields.Reference(
         "Target", selection='models_get', select=True,
     )
+    score = fields.Function(
+        fields.Integer('Score'), 'get_score'
+    )
+
+    def get_score(self, ids, name):
+        """
+        Returns an integer score which could be used for sorting the activities
+        by external system like caches, which may not be able to sort on the
+        date.
+
+        This score is based on the create date of the activity.
+
+        :param ids: list of id.
+        :param name: name of field.
+
+        :return: Dictonary with updated values.
+        """
+        res = {}
+        for activity in self.browse(ids):
+            res[activity.id] = int(activity.create_date.strftime('%s'))
+        return res
 
     def models_get(self):
         '''Return valid models where activity stream could have valid objects
