@@ -48,6 +48,11 @@ class Activity(ModelSQL, ModelView):
         fields.Integer('Score'), 'get_score'
     )
 
+
+    def __init__(self):
+        super(Activity, self).__init__()
+        self._order = [('create_date', 'DESC')]
+
     def get_score(self, ids, name):
         """
         Returns an integer score which could be used for sorting the activities
@@ -153,7 +158,6 @@ class Activity(ModelSQL, ModelView):
         ids = self.search(
             self.get_activity_stream_domain(),
             limit=limit, offset=offset,
-            order=[('create_date', 'DESC')]
         )
 
         return jsonify({
