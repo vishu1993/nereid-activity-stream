@@ -83,19 +83,6 @@ class Activity(ModelSQL, ModelView):
             res.append((allowed_model.model.model, allowed_model.name))
         return res
 
-    def _serialize_actor(self, activity):
-        """
-        Serialize the actor alone and return a dictionary. This is separated
-        so that other modules can easily modify the behavior independent of
-        this modules
-        """
-        return {
-            "url": None,  # by default there is no way to expose user
-            "objectType": "nereid.user",
-            "id": activity.actor.id,
-            "displayName": activity.actor.display_name,
-        }
-
     def serialize(self, activity):
         '''Return a JSON Seralizable dictionary that could be stored in a
         cache and sent by XHR.
@@ -107,24 +94,24 @@ class Activity(ModelSQL, ModelView):
 
         :param activity: Browse record of activity
         '''
-        json = {
+        nereid_user_obj = Pool().get('nereid.user')
+        if not self.search([('id', '=', activity.id)], count=True):
+            return None
+        response_json = {
             "published": activity.create_date.isoformat(),
-            "actor": self._serialize_actor(activity),
+            "actor": nereid_user_obj._json(activity.actor),
             "verb": activity.verb,
         }
 
         # Split the reference field data and get a browse record
         # for it.
         object_model = activity.object_.split(',')[0]
+        object_obj = Pool().get(object_model)
         object_id = int(activity.object_.split(',')[1])
 
-        object_ = Pool().get(object_model).browse(object_id)
-        json["object"] = {
-            "url": hasattr(object_, 'url') and object_.url or None,
-            "id": object_.id,
-            "objectType": object_model,
-            "displayName": object_.rec_name,
-        }
+        object_ = object_obj.browse(object_id)
+
+        response_json["object"] = object_obj._json(object_)
 
         if activity.target:
             # Split the reference field data and get a browse record
@@ -133,14 +120,9 @@ class Activity(ModelSQL, ModelView):
             target_id = int(activity.target.split(',')[1])
 
             target = Pool().get(target_model).browse(target_id)
-            json["target"] = {
-                "url": hasattr(target, 'url') and target.url or None,
-                "objectType": target_model,
-                "id": target_id,
-                "displayName": target.rec_name,
-            }
+            response_json["target"] = target._json(target)
 
-        return json
+        return response_json
 
     def get_activity_stream_domain(self):
         '''Returns the domain to get activity stream
@@ -169,7 +151,8 @@ Activity()
 
 
 class ActivityAllowedModel(ModelSQL, ModelView):
-    '''Nereid activity allowed model
+    '''
+    Nereid activity allowed model
 
     The model stores name (name) and model (ir.model) as list of allowed model
     in activty.
@@ -190,3 +173,27 @@ class ActivityAllowedModel(ModelSQL, ModelView):
             ]
 
 ActivityAllowedModel()
+
+
+class NereidUser(ModelSQL, ModelView):
+    '''
+    Nereid User
+    '''
+    _name = 'nereid.user'
+
+    def _json(self, actor):
+        """
+        Serialize the actor alone and return a dictionary. This is separated
+        so that other modules can easily modify the behavior independent of
+        this modules.
+
+        :param actor: Browse record of nereid.user.
+        """
+        return {
+            "url": None,
+            "objectType": self._name,
+            "id": actor.id,
+            "displayName": actor.display_name,
+        }
+
+NereidUser()
