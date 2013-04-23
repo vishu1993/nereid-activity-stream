@@ -8,6 +8,7 @@
 import sys
 import json
 import os
+import types
 DIR = os.path.abspath(os.path.normpath(os.path.join(__file__,
     '..', '..', '..', '..', '..', 'trytond')))
 if os.path.isdir(DIR):
@@ -228,6 +229,16 @@ class ActivityTestCase(NereidTestCase):
                 'actor': self.nereid_user_actor,
                 'object_': 'party.party,%s' % self.user_party,
             })
+
+            party_obj = POOL.get('party.party')
+            def _json(self, party):
+                return {
+                    'url': None,
+                    'id': party.id,
+                    'displayName': party.name,
+                    'objectType': 'party.party',
+                }
+            party_obj._json = types.MethodType(_json, party_obj)
 
             with app.test_client() as c:
                 # Stream Length Count
