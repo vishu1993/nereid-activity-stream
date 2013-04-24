@@ -98,7 +98,7 @@ class Activity(ModelSQL, ModelView):
         if not self.search([('id', '=', activity.id)], count=True):
             return None
         response_json = {
-            "published": activity.create_date.isoformat(),
+            "published": activity.create_date.isoformat(' '),
             "actor": nereid_user_obj._json(activity.actor),
             "verb": activity.verb,
         }
