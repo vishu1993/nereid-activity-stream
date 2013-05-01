@@ -26,6 +26,7 @@
                 <form string="Activity Stream">
                     <label name="actor"/>
                     <field name="actor"/>
+                    <newline />
                     <label name="verb"/>
                     <field name="verb"/>
                     <label name="object_"/>
