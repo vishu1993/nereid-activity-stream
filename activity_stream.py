@@ -9,6 +9,7 @@
 """
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.pool import Pool
+from trytond.exceptions import UserError
 
 from nereid import request, url_for, jsonify
 
@@ -95,8 +96,15 @@ class Activity(ModelSQL, ModelView):
         :param activity: Browse record of activity
         '''
         nereid_user_obj = Pool().get('nereid.user')
+
         if not self.search([('id', '=', activity.id)], count=True):
             return None
+
+        if not activity.object_:
+            # When the object_ which caused the activity is no more
+            # the value will be False
+            return None
+
         response_json = {
             "published": activity.create_date.isoformat(),
             "actor": nereid_user_obj._json(activity.actor),
@@ -110,8 +118,14 @@ class Activity(ModelSQL, ModelView):
         object_id = int(activity.object_.split(',')[1])
 
         object_ = object_obj.browse(object_id)
-
-        response_json["object"] = object_obj._json(object_)
+        try:
+            object_.rec_name
+        except UserError:
+            # The record may not exist anymore which results in
+            # a read error
+            return None
+        else:
+            response_json["object"] = object_obj._json(object_)
 
         if activity.target:
             # Split the reference field data and get a browse record
@@ -142,9 +156,13 @@ class Activity(ModelSQL, ModelView):
             limit=limit, offset=offset,
         )
 
+        items = filter(
+            None, map(lambda x: self.serialize(x), self.browse(ids))
+        )
+
         return jsonify({
-            'totalItems': len(ids),
-            'items': map(lambda x: self.serialize(x), self.browse(ids)),
+            'totalItems': len(items),
+            'items': items,
         })
 
 Activity()
