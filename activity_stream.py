@@ -134,7 +134,14 @@ class Activity(ModelSQL, ModelView):
             target_id = int(activity.target.split(',')[1])
 
             target = Pool().get(target_model).browse(target_id)
-            response_json["target"] = target._json(target)
+            try:
+                target.rec_name
+            except UserError:
+                # The record may not exist anymore which results in
+                # a read error
+                return None
+            else:
+                response_json["target"] = target._json(target)
 
         return response_json
 

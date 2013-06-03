@@ -256,6 +256,7 @@ class ActivityTestCase(NereidTestCase):
                 )
                 self.assertTrue(pub_dates[2] < pub_dates[1] < pub_dates[0])
 
+            # If Object is deleted
             new_party = self.party_obj.create({'name': 'Sharoon'})
             activity4 = self.activity_obj.create({
                 'verb': 'Added a new friend who does not exist',
@@ -270,6 +271,31 @@ class ActivityTestCase(NereidTestCase):
                 self.assertEqual(rv_json['totalItems'], 4)
 
             self.party_obj.delete([new_party])
+
+            with app.test_client() as c:
+                # Stream Length Count
+                rv = c.get('en_US/user/activity-stream')
+                rv_json = json.loads(rv.data)
+                self.assertEqual(rv_json['totalItems'], 3)
+
+            # Test if target is deleted
+            new_party = self.party_obj.create({'name': 'Sharoon'})
+            target_party = self.party_obj.create({'name': 'Tarun'})
+            activity4 = self.activity_obj.create({
+                'verb': 'Added a new friend who does not exist',
+                'actor': self.nereid_user_actor,
+                'object_': 'party.party,%d' % new_party,
+                'target': 'party.party,%d' % target_party,
+
+            })
+
+            with app.test_client() as c:
+                # Stream Length Count
+                rv = c.get('en_US/user/activity-stream')
+                rv_json = json.loads(rv.data)
+                self.assertEqual(rv_json['totalItems'], 4)
+
+            self.party_obj.delete([target_party])
 
             with app.test_client() as c:
                 # Stream Length Count
