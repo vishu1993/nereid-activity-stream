@@ -8,8 +8,9 @@
 import sys
 import json
 import os
-DIR = os.path.abspath(os.path.normpath(os.path.join(__file__,
-    '..', '..', '..', '..', '..', 'trytond')))
+DIR = os.path.abspath(os.path.normpath(
+    os.path.join(__file__, '..', '..', '..', '..', '..', 'trytond')
+))
 if os.path.isdir(DIR):
     sys.path.insert(0, os.path.dirname(DIR))
 from dateutil import parser
@@ -143,7 +144,7 @@ class ActivityTestCase(NereidTestCase):
                 ('model', '=', 'party.party')
             ], limit=1)
 
-            activity_object = self.ActivityAllowedModel.create({
+            self.ActivityAllowedModel.create({
                 'name': 'Party',
                 'model': party_model.id,
             })
@@ -202,27 +203,26 @@ class ActivityTestCase(NereidTestCase):
             nereid_user_model, = self.Model.search([
                 ('model', '=', 'nereid.user')
             ])
-
-            activity_object = self.ActivityAllowedModel.create({
+            self.ActivityAllowedModel.create({
                 'name': 'User',
                 'model': nereid_user_model.id,
             })
 
             # Create 3 Activities
-            activity1 = self.Activity.create({
+            self.Activity.create({
                 'verb': 'Added a new friend',
                 'actor': self.nereid_user_actor.id,
                 'object_': 'nereid.user,%s' % self.user_party.id,
             })
 
-            activity2 = self.Activity.create({
+            self.Activity.create({
                 'verb': 'Added a friend to a list',
                 'actor': self.nereid_user_actor.id,
                 'object_': 'nereid.user,%s' % self.user_party.id,
                 'target': 'nereid.user,%s' % self.user_party.id,
             })
 
-            activity3 = self.Activity.create({
+            self.Activity.create({
                 'verb': 'Added a new friend',
                 'actor': self.nereid_user_actor.id,
                 'object_': 'nereid.user,%s' % self.user_party.id,
@@ -243,6 +243,34 @@ class ActivityTestCase(NereidTestCase):
                     rv_json['items'],
                 )
                 self.assertTrue(pub_dates[2] < pub_dates[1] < pub_dates[0])
+
+            # Test when object_ is deleted
+            new_party = self.Party.create({'name': 'Tarun'})
+            new_nereid_user = self.NereidUser.create({
+                'party': new_party.id,
+                'company': self.company.id,
+                'display_name': new_party.name
+            })
+
+            self.Activity.create({
+                'verb': 'Added a new friend who does not exist',
+                'actor': self.nereid_user_actor.id,
+                'object_': 'nereid.user,%d' % new_nereid_user.id,
+            })
+
+            with app.test_client() as c:
+                # Stream Length Count
+                rv = c.get('en_US/user/activity-stream')
+                rv_json = json.loads(rv.data)
+                self.assertEqual(rv_json['totalItems'], 4)
+
+            self.NereidUser.delete([new_nereid_user])
+
+            with app.test_client() as c:
+                # Stream Length Count
+                rv = c.get('en_US/user/activity-stream')
+                rv_json = json.loads(rv.data)
+                self.assertEqual(rv_json['totalItems'], 3)
 
 
 def suite():

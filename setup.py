@@ -60,7 +60,8 @@ class RunAudit(Command):
         pass
 
     def run(self):
-        import os, sys
+        import os
+        import sys
         try:
             import pyflakes.scripts.pyflakes as flakes
         except ImportError:
@@ -96,30 +97,33 @@ minor_version = int(minor_version)
 requires = []
 for dep in info.get('depends', []):
     if not re.match(r'(ir|res|webdav)(\W|$)', dep):
-        requires.append('trytond_%s >= %s.%s, < %s.%s' %
-                (dep, major_version, minor_version, major_version,
-                    minor_version + 1)
+        requires.append(
+            'trytond_%s >= %s.%s, < %s.%s' %
+            (dep, major_version, minor_version, major_version,
+                minor_version + 1)
         )
-requires.append('trytond >= %s.%s, < %s.%s' %
-        (major_version, minor_version, major_version, minor_version + 1)
-        )
+requires.append(
+    'trytond >= %s.%s, < %s.%s' %
+    (major_version, minor_version, major_version, minor_version + 1)
+)
 
-setup(name='trytond_nereid_activity_stream',
+setup(
+    name='trytond_nereid_activity_stream',
     version=info.get('version', '0.0.1'),
     description=info.get('description', ''),
     author=info.get('author', ''),
     author_email=info.get('email', ''),
     url=info.get('website', ''),
-    download_url="http://downloads.openlabs.co.in/" + \
-            info.get('version', '0.0.1').rsplit('.', 1)[0] + '/',
+    download_url="http://downloads.openlabs.co.in/" +
+    info.get('version', '0.0.1').rsplit('.', 1)[0] + '/',
     package_dir={'trytond.modules.nereid_activity_stream': '.'},
     packages=[
         'trytond.modules.nereid_activity_stream',
         'trytond.modules.nereid_activity_stream.tests',
     ],
     package_data={
-        'trytond.modules.nereid_activity_stream': info.get('xml', []) \
-                + info.get('translation', []) + ['tryton.cfg'],
+        'trytond.modules.nereid_activity_stream': info.get('xml', [])
+        + info.get('translation', []) + ['tryton.cfg'],
     },
     classifiers=[
         'Development Status :: 4 - Beta',

@@ -9,6 +9,7 @@
 """
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.pool import Pool, PoolMeta
+from trytond.exceptions import UserError
 
 from nereid import request, jsonify
 
@@ -105,20 +106,38 @@ class Activity(ModelSQL, ModelView):
         anywhere in the dictionary (to be JSON object). This is respected by
         the JSON Activity Streams 1.0 spec.
         '''
-        NereidUser = Pool().get('nereid.user')
-
         if not self.search([('id', '=', self.id)], count=True):
             return None
+
+        if not self.object_:
+            # When the object_ which caused the activity is no more
+            # the value will be False
+            return None
+
         response_json = {
             "published": self.create_date.isoformat(),
             "actor": self.actor._json(),
             "verb": self.verb,
         }
 
-        response_json["object"] = self.object_._json()
+        try:
+            self.object_.rec_name
+        except UserError:
+            # The record may not exist anymore which results in
+            # a read error
+            return None
+        else:
+            response_json["object"] = self.object_._json()
 
         if self.target:
-            response_json["target"] = self.target._json()
+            try:
+                self.target.rec_name
+            except UserError:
+                # The record may not exist anymore which results in
+                # a read error
+                return None
+            else:
+                response_json["target"] = self.target._json()
 
         return response_json
 
@@ -144,9 +163,13 @@ class Activity(ModelSQL, ModelView):
             limit=limit, offset=offset,
         )
 
+        items = filter(
+            None, map(lambda activity: activity.serialize(), activities)
+        )
+
         return jsonify({
-            'totalItems': len(activities),
-            'items': map(lambda activity: activity.serialize(), activities),
+            'totalItems': len(items),
+            'items': items,
         })
 
 
