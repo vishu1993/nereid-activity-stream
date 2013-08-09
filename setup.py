@@ -12,39 +12,6 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
-class XMLTests(Command):
-    """Runs the tests and save the result to an XML file
-
-    Running this requires unittest-xml-reporting which can
-    be installed using::
-
-        pip install unittest-xml-reporting
-
-    """
-    description = "Run nosetests with coverage"
-
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        import coverage
-        import xmlrunner
-        cov = coverage.coverage(
-            source=["trytond.modules.nereid_activity_stream"]
-        )
-        cov.start()
-        from tests import suite
-        xmlrunner.XMLTestRunner(output="xml-test-results").run(suite())
-        cov.stop()
-        cov.save()
-        cov.xml_report(outfile="coverage.xml")
-
-
 class RunAudit(Command):
     """Audits source code using PyFlakes for following issues:
         - Names which are used but not defined or used before they are defined.
@@ -110,12 +77,11 @@ requires.append(
 setup(
     name='trytond_nereid_activity_stream',
     version=info.get('version', '0.0.1'),
-    description=info.get('description', ''),
-    author=info.get('author', ''),
-    author_email=info.get('email', ''),
-    url=info.get('website', ''),
-    download_url="http://downloads.openlabs.co.in/" +
-    info.get('version', '0.0.1').rsplit('.', 1)[0] + '/',
+    description='Activity Stream (a.k.a news feed) for Tryton nereid',
+    long_description=open('README.rst').read(),
+    author='Openlabs Technologies & consulting (P) Limited',
+    author_email='info@openlabs.co.in',
+    url='https://github.com/openlabs/nereid-activity-stream',
     package_dir={'trytond.modules.nereid_activity_stream': '.'},
     packages=[
         'trytond.modules.nereid_activity_stream',
@@ -145,7 +111,6 @@ setup(
     """,
     test_suite='tests.suite',
     cmdclass={
-        'xmltests': XMLTests,
         'audit': RunAudit,
     },
     test_loader='trytond.test_loader:Loader',
