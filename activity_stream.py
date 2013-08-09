@@ -8,31 +8,46 @@
     :license: GPLv3, see LICENSE for more details.
 """
 from trytond.model import ModelSQL, ModelView, fields
-from trytond.pool import Pool
+from trytond.pool import Pool, PoolMeta
+from trytond.exceptions import UserError
 
-from nereid import request, url_for, jsonify
+from nereid import request, jsonify
+
+__all__ = ['NereidUser', 'Activity', 'ActivityAllowedModel']
+__metaclass__ = PoolMeta
 
 
-class NereidUser(ModelSQL, ModelView):
+class NereidUser:
     "Nereid User"
-    _name = 'nereid.user'
+    __name__ = 'nereid.user'
 
     activities = fields.One2Many(
         'nereid.activity', 'actor', 'Activities'
     )
 
-NereidUser()
+    def _json(self):
+        """
+        Serialize the actor alone and return a dictionary. This is separated
+        so that other modules can easily modify the behavior independent of
+        this modules.
+        """
+        return {
+            "url": None,
+            "objectType": self.__name__,
+            "id": self.id,
+            "displayName": self.display_name,
+        }
 
 
 class Activity(ModelSQL, ModelView):
-    '''Nereid user activity
+    '''
+    Nereid user activity
 
     The model stores activities (verb) performed by nereid users (actor). The
     field names and data structure is inspired by the activity stream json
     specification 1.0 http://activitystrea.ms/specs/json/1.0/
     '''
-    _name = 'nereid.activity'
-    _description = __doc__.split('\n')[0]
+    __name__ = 'nereid.activity'
 
     actor = fields.Many2One(
         'nereid.user', 'Actor', required=True, select=True
@@ -48,106 +63,114 @@ class Activity(ModelSQL, ModelView):
         fields.Integer('Score'), 'get_score'
     )
 
+    @classmethod
+    def __setup__(cls):
+        super(Activity, cls).__setup__()
+        cls._order = [('create_date', 'DESC')]
 
-    def __init__(self):
-        super(Activity, self).__init__()
-        self._order = [('create_date', 'DESC')]
-
-    def get_score(self, ids, name):
+    def get_score(self, name):
         """
         Returns an integer score which could be used for sorting the activities
         by external system like caches, which may not be able to sort on the
-        date.
+        date
 
         This score is based on the create date of the activity.
 
-        :param ids: list of id.
         :param name: name of field.
 
-        :return: Dictonary with updated values.
+        :return: Integer Score.
         """
-        res = {}
-        for activity in self.browse(ids):
-            res[activity.id] = int(activity.create_date.strftime('%s'))
-        return res
+        return int(self.create_date.strftime('%s'))
 
-    def models_get(self):
-        '''Return valid models where activity stream could have valid objects
+    @classmethod
+    def models_get(cls):
+        '''
+        Return valid models where activity stream could have valid objects
         and targets.
         '''
-        allowed_model_obj = Pool().get('nereid.activity.allowed_model')
+        ActivityAllowedModel = Pool().get('nereid.activity.allowed_model')
 
-        allowed_model_ids = allowed_model_obj.search([])
+        activity_allowed_models = ActivityAllowedModel.search([])
         res = []
-        for allowed_model in allowed_model_obj.browse(allowed_model_ids):
+        for allowed_model in activity_allowed_models:
             res.append((allowed_model.model.model, allowed_model.name))
         return res
 
-    def serialize(self, activity):
-        '''Return a JSON Seralizable dictionary that could be stored in a
+    def serialize(self):
+        '''
+        Return a JSON Seralizable dictionary that could be stored in a
         cache and sent by XHR.
 
         If additional information needs to be passed with the serialized data,
         a subclass could get the returned dictionary and inject properties
         anywhere in the dictionary (to be JSON object). This is respected by
         the JSON Activity Streams 1.0 spec.
-
-        :param activity: Browse record of activity
         '''
-        nereid_user_obj = Pool().get('nereid.user')
-        if not self.search([('id', '=', activity.id)], count=True):
+        if not self.search([('id', '=', self.id)], count=True):
             return None
+
+        if not self.object_:
+            # When the object_ which caused the activity is no more
+            # the value will be False
+            return None
+
         response_json = {
-            "published": activity.create_date.isoformat(),
-            "actor": nereid_user_obj._json(activity.actor),
-            "verb": activity.verb,
+            "published": self.create_date.isoformat(),
+            "actor": self.actor._json(),
+            "verb": self.verb,
         }
 
-        # Split the reference field data and get a browse record
-        # for it.
-        object_model = activity.object_.split(',')[0]
-        object_obj = Pool().get(object_model)
-        object_id = int(activity.object_.split(',')[1])
+        try:
+            self.object_.rec_name
+        except UserError:
+            # The record may not exist anymore which results in
+            # a read error
+            return None
+        else:
+            response_json["object"] = self.object_._json()
 
-        object_ = object_obj.browse(object_id)
-
-        response_json["object"] = object_obj._json(object_)
-
-        if activity.target:
-            # Split the reference field data and get a browse record
-            # for it.
-            target_model = activity.target.split(',')[0]
-            target_id = int(activity.target.split(',')[1])
-
-            target = Pool().get(target_model).browse(target_id)
-            response_json["target"] = target._json(target)
+        if self.target:
+            try:
+                self.target.rec_name
+            except UserError:
+                # The record may not exist anymore which results in
+                # a read error
+                return None
+            else:
+                response_json["target"] = self.target._json()
 
         return response_json
 
-    def get_activity_stream_domain(self):
-        '''Returns the domain to get activity stream
+    @classmethod
+    def get_activity_stream_domain(cls):
+        '''
+        Returns the domain to get activity stream
         '''
         return []
 
-    def stream(self):
-        '''Return JSON Serialized Activity Stream to XHR.
+    @classmethod
+    def stream(cls):
+        '''
+        Return JSON Serialized Activity Stream to XHR.
         As defined by the activity stream json specification 1.0
         http://activitystrea.ms/specs/json/1.0/
         '''
         offset = request.args.get('offset', 0, int)
         limit = request.args.get('limit', 100, int)
 
-        ids = self.search(
-            self.get_activity_stream_domain(),
+        activities = cls.search(
+            cls.get_activity_stream_domain(),
             limit=limit, offset=offset,
         )
 
-        return jsonify({
-            'totalItems': len(ids),
-            'items': map(lambda x: self.serialize(x), self.browse(ids)),
-        })
+        items = filter(
+            None, map(lambda activity: activity.serialize(), activities)
+        )
 
-Activity()
+        return jsonify({
+            'totalItems': len(items),
+            'items': items,
+        })
 
 
 class ActivityAllowedModel(ModelSQL, ModelView):
@@ -157,43 +180,17 @@ class ActivityAllowedModel(ModelSQL, ModelView):
     The model stores name (name) and model (ir.model) as list of allowed model
     in activty.
     '''
-    _name = 'nereid.activity.allowed_model'
-    _description = __doc__.split('\n')[0]
+    __name__ = 'nereid.activity.allowed_model'
 
     name = fields.Char("Name", required=True, select=True)
     model = fields.Many2One('ir.model', 'Model', required=True, select=True)
 
-    def __init__(self):
-        super(ActivityAllowedModel, self).__init__()
-        self._sql_constraints += [
+    @classmethod
+    def __setup__(cls):
+        super(ActivityAllowedModel, cls).__setup__()
+        cls._sql_constraints += [
             ('unique_model', 'UNIQUE(model)',
                 'Name is already used.'),
             ('unique_name', 'UNIQUE(name)',
                 'Model is already used.'),
-            ]
-
-ActivityAllowedModel()
-
-
-class NereidUser(ModelSQL, ModelView):
-    '''
-    Nereid User
-    '''
-    _name = 'nereid.user'
-
-    def _json(self, actor):
-        """
-        Serialize the actor alone and return a dictionary. This is separated
-        so that other modules can easily modify the behavior independent of
-        this modules.
-
-        :param actor: Browse record of nereid.user.
-        """
-        return {
-            "url": None,
-            "objectType": self._name,
-            "id": actor.id,
-            "displayName": actor.display_name,
-        }
-
-NereidUser()
+        ]

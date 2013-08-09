@@ -4,39 +4,12 @@
 
 from setuptools import setup, Command
 import re
+import os
+import ConfigParser
 
 
-class XMLTests(Command):
-    """Runs the tests and save the result to an XML file
-
-    Running this requires unittest-xml-reporting which can
-    be installed using::
-
-        pip install unittest-xml-reporting
-
-    """
-    description = "Run nosetests with coverage"
-
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        import coverage
-        import xmlrunner
-        cov = coverage.coverage(
-            source=["trytond.modules.nereid_activity_stream"]
-        )
-        cov.start()
-        from tests import suite
-        xmlrunner.XMLTestRunner(output="xml-test-results").run(suite())
-        cov.stop()
-        cov.save()
-        cov.xml_report(outfile="coverage.xml")
+def read(fname):
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
 class RunAudit(Command):
@@ -54,7 +27,8 @@ class RunAudit(Command):
         pass
 
     def run(self):
-        import os, sys
+        import os
+        import sys
         try:
             import pyflakes.scripts.pyflakes as flakes
         except ImportError:
@@ -77,7 +51,12 @@ class RunAudit(Command):
             print "No problems found in sourcecode."
 
 
-info = eval(open('__tryton__.py').read())
+config = ConfigParser.ConfigParser()
+config.readfp(open('tryton.cfg'))
+info = dict(config.items('tryton'))
+for key in ('depends', 'extras_depend', 'xml'):
+    if key in info:
+        info[key] = info[key].strip().splitlines()
 major_version, minor_version, _ = info.get('version', '0.0.1').split('.', 2)
 major_version = int(major_version)
 minor_version = int(minor_version)
@@ -85,30 +64,32 @@ minor_version = int(minor_version)
 requires = []
 for dep in info.get('depends', []):
     if not re.match(r'(ir|res|webdav)(\W|$)', dep):
-        requires.append('trytond_%s >= %s.%s, < %s.%s' %
-                (dep, major_version, minor_version, major_version,
-                    minor_version + 1)
+        requires.append(
+            'trytond_%s >= %s.%s, < %s.%s' %
+            (dep, major_version, minor_version, major_version,
+                minor_version + 1)
         )
-requires.append('trytond >= %s.%s, < %s.%s' %
-        (major_version, minor_version, major_version, minor_version + 1)
-        )
+requires.append(
+    'trytond >= %s.%s, < %s.%s' %
+    (major_version, minor_version, major_version, minor_version + 1)
+)
 
-setup(name='trytond_nereid_activity_stream',
+setup(
+    name='trytond_nereid_activity_stream',
     version=info.get('version', '0.0.1'),
-    description=info.get('description', ''),
-    author=info.get('author', ''),
-    author_email=info.get('email', ''),
-    url=info.get('website', ''),
-    download_url="http://downloads.openlabs.co.in/" + \
-            info.get('version', '0.0.1').rsplit('.', 1)[0] + '/',
+    description='Activity Stream (a.k.a news feed) for Tryton nereid',
+    long_description=open('README.rst').read(),
+    author='Openlabs Technologies & consulting (P) Limited',
+    author_email='info@openlabs.co.in',
+    url='https://github.com/openlabs/nereid-activity-stream',
     package_dir={'trytond.modules.nereid_activity_stream': '.'},
     packages=[
         'trytond.modules.nereid_activity_stream',
         'trytond.modules.nereid_activity_stream.tests',
     ],
     package_data={
-        'trytond.modules.nereid_activity_stream': info.get('xml', []) \
-                + info.get('translation', []) \
+        'trytond.modules.nereid_activity_stream': info.get('xml', [])
+        + info.get('translation', []) + ['tryton.cfg'],
     },
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -130,7 +111,6 @@ setup(name='trytond_nereid_activity_stream',
     """,
     test_suite='tests.suite',
     cmdclass={
-        'xmltests': XMLTests,
         'audit': RunAudit,
     },
     test_loader='trytond.test_loader:Loader',
