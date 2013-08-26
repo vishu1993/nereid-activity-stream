@@ -91,7 +91,7 @@ class Activity(ModelSQL, ModelView):
         ActivityAllowedModel = Pool().get('nereid.activity.allowed_model')
 
         activity_allowed_models = ActivityAllowedModel.search([])
-        res = []
+        res = [(None, '')]
         for allowed_model in activity_allowed_models:
             res.append((allowed_model.model.model, allowed_model.name))
         return res
