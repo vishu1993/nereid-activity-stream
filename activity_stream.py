@@ -11,7 +11,7 @@ from trytond.model import ModelSQL, ModelView, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.exceptions import UserError
 
-from nereid import request, jsonify
+from nereid import request, jsonify, login_required
 
 __all__ = ['NereidUser', 'Activity', 'ActivityAllowedModel']
 __metaclass__ = PoolMeta
@@ -146,9 +146,41 @@ class Activity(ModelSQL, ModelView):
         '''
         Returns the domain to get activity stream
         '''
-        return []
+        return [
+            ('actor', '=', request.nereid_user.id)
+        ]
 
     @classmethod
+    def get_public_stream_domain(cls):
+        """
+        Returns the domain for public stream
+        """
+        return [
+            ('id', '=', None)
+        ]
+
+    @classmethod
+    def public_stream(cls):
+        '''
+        Returns activity stream for public user
+        '''
+        offset = request.args.get('offset', 0, int)
+        limit = request.args.get('limit', 100, int)
+
+        activities = cls.search(
+            cls.get_public_stream_domain(), limit=limit, offset=offset,
+        )
+
+        items = filter(
+            None, map(lambda activity: activity.serialize(), activities)
+        )
+        return jsonify({
+            'totalItems': len(items),
+            'items': items,
+        })
+
+    @classmethod
+    @login_required
     def stream(cls):
         '''
         Return JSON Serialized Activity Stream to XHR.

@@ -210,6 +210,11 @@ class ActivityTestCase(NereidTestCase):
             self.setup_defaults()
             app = self.get_app()
 
+            login_data = {
+                'email': 'email@example.com',
+                'password': 'password',
+            }
+
             nereid_user_model, = self.Model.search([
                 ('model', '=', 'nereid.user')
             ])
@@ -221,20 +226,25 @@ class ActivityTestCase(NereidTestCase):
             # Create 3 Activities
             self.Activity.create([{
                 'verb': 'Added a new friend',
-                'actor': self.nereid_user_actor,
+                'actor': self.registered_user,
                 'object_': 'nereid.user,%s' % self.user_party.id,
             }, {
                 'verb': 'Added a friend to a list',
-                'actor': self.nereid_user_actor,
+                'actor': self.registered_user,
                 'object_': 'nereid.user,%s' % self.user_party.id,
                 'target': 'nereid.user,%s' % self.user_party.id,
             }, {
                 'verb': 'Added a new friend',
-                'actor': self.nereid_user_actor,
+                'actor': self.registered_user,
                 'object_': 'nereid.user,%s' % self.user_party.id,
             }])
 
             with app.test_client() as c:
+                # Login success
+                rv = c.post('/en_US/login', data=login_data)
+                self.assertEqual(rv.location, 'http://localhost/en_US/')
+                self.assertEqual(rv.status_code, 302)
+
                 # Stream Length Count
                 rv = c.get('en_US/user/activity-stream')
                 rv_json = json.loads(rv.data)
@@ -260,11 +270,16 @@ class ActivityTestCase(NereidTestCase):
 
             self.Activity.create([{
                 'verb': 'Added a new friend who does not exist',
-                'actor': self.nereid_user_actor.id,
+                'actor': self.registered_user,
                 'object_': 'nereid.user,%d' % new_nereid_user.id,
             }])
 
             with app.test_client() as c:
+                # Login success
+                rv = c.post('/en_US/login', data=login_data)
+                self.assertEqual(rv.location, 'http://localhost/en_US/')
+                self.assertEqual(rv.status_code, 302)
+
                 # Stream Length Count
                 rv = c.get('en_US/user/activity-stream')
                 rv_json = json.loads(rv.data)
@@ -273,10 +288,54 @@ class ActivityTestCase(NereidTestCase):
             self.NereidUser.delete([new_nereid_user])
 
             with app.test_client() as c:
+                # Login success
+                rv = c.post('/en_US/login', data=login_data)
+                self.assertEqual(rv.location, 'http://localhost/en_US/')
+                self.assertEqual(rv.status_code, 302)
+
                 # Stream Length Count
                 rv = c.get('en_US/user/activity-stream')
                 rv_json = json.loads(rv.data)
                 self.assertEqual(rv_json['totalItems'], 3)
+
+    def test0030_public_stream(self):
+        '''
+        Checks public stream
+        '''
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            app = self.get_app()
+
+            user_model, = self.Model.search([
+                ('model', '=', 'nereid.user')
+            ])
+
+            self.ActivityAllowedModel.create([{
+                'name': 'User',
+                'model': user_model.id,
+            }])
+
+            # Create Activities
+            self.Activity.create([{
+                'verb': 'Added a new friend',
+                'actor': self.registered_user,
+                'object_': 'nereid.user,%s' % self.user_party.id,
+            }])
+
+            self.Activity.create([{
+                'verb': 'Added a friend to a list',
+                'actor': self.registered_user,
+                'object_': 'nereid.user,%s' % self.user_party.id,
+                'target': 'nereid.user,%s' % self.user_party.id,
+            }])
+
+            with app.test_client() as c:
+                # Get public activity stream
+                rv = c.get('/en_US/activity-stream')
+                rv_json = json.loads(rv.data)
+
+                # No activity stream available publicly
+                self.assertEqual(rv_json['totalItems'], 0)
 
 
 def suite():
