@@ -59,34 +59,42 @@ class ActivityTestCase(NereidTestCase):
         '''
         Setting Defaults for Test Nereid Activity Stream
         '''
-        usd = self.Currency.create({
+        usd, = self.Currency.create([{
             'name': 'US Dollar',
             'code': 'USD',
             'symbol': '$',
-        })
-        company = self.Company.create({
+        }])
+        company_party, = self.Party.create([{
             'name': 'Openlabs',
+        }])
+        company, = self.Company.create([{
+            'party': company_party.id,
             'currency': usd.id
-        })
-        guest_user = self.NereidUser.create({
+        }])
+        guest_party, registered_party = self.Party.create([{
             'name': 'Guest User',
+        }, {
+            'name': 'Registered User',
+        }])
+        guest_user, = self.NereidUser.create([{
+            'party': guest_party.id,
             'display_name': 'Guest User',
             'email': 'guest@openlabs.co.in',
             'password': 'password',
             'company': company.id,
-        })
-        self.registered_user = self.NereidUser.create({
-            'name': 'Registered User',
+        }])
+        self.registered_user, = self.NereidUser.create([{
+            'party': registered_party.id,
             'display_name': 'Registered User',
             'email': 'email@example.com',
             'password': 'password',
             'company': company.id,
-        })
+        }])
 
         # Create website
         url_map, = self.UrlMap.search([], limit=1)
         en_us, = self.Language.search([('code', '=', 'en_US')], limit=1)
-        self.NereidWebsite.create({
+        self.NereidWebsite.create([{
             'name': 'localhost',
             'url_map': url_map.id,
             'company': company.id,
@@ -94,44 +102,46 @@ class ActivityTestCase(NereidTestCase):
             'default_language': en_us.id,
             'guest_user': guest_user.id,
             'currencies': [('set', [usd.id])],
-        })
+        }])
 
-        self.user_party = self.Party.create({
+        self.user_party, = self.Party.create([{
             'name': 'User1',
-        })
+        }])
 
-        currency = self.Currency.create({
+        currency, = self.Currency.create([{
             'name': 'US Dollar',
             'code': 'USD',
             'symbol': '$',
-        })
+        }])
 
-        self.company = self.Company.create({
+        party, = self.Party.create([{
             'name': 'openlabs',
+        }])
+        self.company, = self.Company.create([{
+            'party': party.id,
             'currency': currency.id,
-        })
+        }])
 
-        actor_party = self.Party.create({
+        actor_party, = self.Party.create([{
             'name': 'Party1',
-        })
-
-        nereid_user = self.NereidUser.create({
+        }])
+        nereid_user, = self.NereidUser.create([{
             'party': self.user_party.id,
             'company': self.company.id,
-            'display_name': self.user_party.name
-        })
+            'display_name': self.user_party.rec_name
+        }])
 
-        self.nereid_user_actor = self.NereidUser.create({
+        self.nereid_user_actor, = self.NereidUser.create([{
             'party': actor_party.id,
             'company': self.company.id,
-            'display_name': actor_party.name
-        })
+            'display_name': actor_party.rec_name
+        }])
 
-        self.nereid_stream_owner = self.NereidUser.create({
+        self.nereid_stream_owner, = self.NereidUser.create([{
             'party': nereid_user.id,
             'company': self.company.id,
-            'display_name': nereid_user.name
-        })
+            'display_name': nereid_user.rec_name
+        }])
 
     def test0010_create_activity(self):
         '''
@@ -144,49 +154,49 @@ class ActivityTestCase(NereidTestCase):
                 ('model', '=', 'party.party')
             ], limit=1)
 
-            self.ActivityAllowedModel.create({
+            self.ActivityAllowedModel.create([{
                 'name': 'Party',
-                'model': party_model.id,
-            })
+                'model': party_model,
+            }])
 
             # Create Activity without verb
             self.assertRaises(
-                UserError, self.Activity.create, {
-                    'actor': self.nereid_user_actor.id,
+                UserError, self.Activity.create, [{
+                    'actor': self.nereid_user_actor,
                     'object_': 'party.party,%s' % self.user_party.id,
-                }
+                }]
             )
 
             # Create Activity without actor
             self.assertRaises(
-                UserError, self.Activity.create, {
+                UserError, self.Activity.create, [{
                     'verb': 'Blog post',
                     'object_': 'party.party,%s' % self.user_party.id,
-                }
+                }]
             )
 
             # Create Activity without object_
             self.assertRaises(
-                UserError, self.Activity.create, {
+                UserError, self.Activity.create, [{
                     'verb': 'Added a new friend',
-                    'actor': self.nereid_user_actor.id,
-                }
+                    'actor': self.nereid_user_actor,
+                }]
             )
 
             # Create Activity without target
-            activity = self.Activity.create, {
+            activity, = self.Activity.create([{
                 'verb': 'Added a new friend',
-                'actor': self.nereid_user_actor.id,
+                'actor': self.nereid_user_actor,
                 'object_': 'party.party,%s' % self.user_party.id,
-            }
+            }])
 
             # Create Activity with target
-            activity = self.Activity.create({
+            activity, = self.Activity.create([{
                 'verb': 'Added a new friend',
                 'actor': self.nereid_user_actor.id,
                 'object_': 'party.party,%s' % self.user_party.id,
                 'target': 'party.party,%s' % self.user_party.id
-            })
+            }])
 
             self.assert_(
                 activity in self.nereid_user_actor.activities
@@ -200,35 +210,41 @@ class ActivityTestCase(NereidTestCase):
             self.setup_defaults()
             app = self.get_app()
 
+            login_data = {
+                'email': 'email@example.com',
+                'password': 'password',
+            }
+
             nereid_user_model, = self.Model.search([
                 ('model', '=', 'nereid.user')
             ])
-            self.ActivityAllowedModel.create({
+            self.ActivityAllowedModel.create([{
                 'name': 'User',
-                'model': nereid_user_model.id,
-            })
+                'model': nereid_user_model,
+            }])
 
             # Create 3 Activities
-            self.Activity.create({
+            self.Activity.create([{
                 'verb': 'Added a new friend',
-                'actor': self.nereid_user_actor.id,
+                'actor': self.registered_user,
                 'object_': 'nereid.user,%s' % self.user_party.id,
-            })
-
-            self.Activity.create({
+            }, {
                 'verb': 'Added a friend to a list',
-                'actor': self.nereid_user_actor.id,
+                'actor': self.registered_user,
                 'object_': 'nereid.user,%s' % self.user_party.id,
                 'target': 'nereid.user,%s' % self.user_party.id,
-            })
-
-            self.Activity.create({
+            }, {
                 'verb': 'Added a new friend',
-                'actor': self.nereid_user_actor.id,
+                'actor': self.registered_user,
                 'object_': 'nereid.user,%s' % self.user_party.id,
-            })
+            }])
 
             with app.test_client() as c:
+                # Login success
+                rv = c.post('/en_US/login', data=login_data)
+                self.assertEqual(rv.location, 'http://localhost/en_US/')
+                self.assertEqual(rv.status_code, 302)
+
                 # Stream Length Count
                 rv = c.get('en_US/user/activity-stream')
                 rv_json = json.loads(rv.data)
@@ -245,20 +261,25 @@ class ActivityTestCase(NereidTestCase):
                 self.assertTrue(pub_dates[2] < pub_dates[1] < pub_dates[0])
 
             # Test when object_ is deleted
-            new_party = self.Party.create({'name': 'Tarun'})
-            new_nereid_user = self.NereidUser.create({
+            new_party, = self.Party.create([{'name': 'Tarun'}])
+            new_nereid_user, = self.NereidUser.create([{
                 'party': new_party.id,
                 'company': self.company.id,
                 'display_name': new_party.name
-            })
+            }])
 
-            self.Activity.create({
+            self.Activity.create([{
                 'verb': 'Added a new friend who does not exist',
-                'actor': self.nereid_user_actor.id,
+                'actor': self.registered_user,
                 'object_': 'nereid.user,%d' % new_nereid_user.id,
-            })
+            }])
 
             with app.test_client() as c:
+                # Login success
+                rv = c.post('/en_US/login', data=login_data)
+                self.assertEqual(rv.location, 'http://localhost/en_US/')
+                self.assertEqual(rv.status_code, 302)
+
                 # Stream Length Count
                 rv = c.get('en_US/user/activity-stream')
                 rv_json = json.loads(rv.data)
@@ -267,10 +288,54 @@ class ActivityTestCase(NereidTestCase):
             self.NereidUser.delete([new_nereid_user])
 
             with app.test_client() as c:
+                # Login success
+                rv = c.post('/en_US/login', data=login_data)
+                self.assertEqual(rv.location, 'http://localhost/en_US/')
+                self.assertEqual(rv.status_code, 302)
+
                 # Stream Length Count
                 rv = c.get('en_US/user/activity-stream')
                 rv_json = json.loads(rv.data)
                 self.assertEqual(rv_json['totalItems'], 3)
+
+    def test0030_public_stream(self):
+        '''
+        Checks public stream
+        '''
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.setup_defaults()
+            app = self.get_app()
+
+            user_model, = self.Model.search([
+                ('model', '=', 'nereid.user')
+            ])
+
+            self.ActivityAllowedModel.create([{
+                'name': 'User',
+                'model': user_model.id,
+            }])
+
+            # Create Activities
+            self.Activity.create([{
+                'verb': 'Added a new friend',
+                'actor': self.registered_user,
+                'object_': 'nereid.user,%s' % self.user_party.id,
+            }])
+
+            self.Activity.create([{
+                'verb': 'Added a friend to a list',
+                'actor': self.registered_user,
+                'object_': 'nereid.user,%s' % self.user_party.id,
+                'target': 'nereid.user,%s' % self.user_party.id,
+            }])
+
+            with app.test_client() as c:
+                # Get public activity stream
+                rv = c.get('/en_US/activity-stream')
+                rv_json = json.loads(rv.data)
+
+                # No activity stream available publicly
+                self.assertEqual(rv_json['totalItems'], 0)
 
 
 def suite():
