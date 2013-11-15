@@ -42,6 +42,7 @@ class ActivityTestCase(NereidTestCase):
         self.UrlMap = POOL.get('nereid.url_map')
         self.Language = POOL.get('ir.lang')
         self.NereidWebsite = POOL.get('nereid.website')
+        self.Locale = POOL.get('nereid.website.locale')
 
     def test0005views(self):
         '''
@@ -94,12 +95,18 @@ class ActivityTestCase(NereidTestCase):
         # Create website
         url_map, = self.UrlMap.search([], limit=1)
         en_us, = self.Language.search([('code', '=', 'en_US')], limit=1)
+
+        self.locale_en_us, = self.Locale.create([{
+            'code': 'en_US',
+            'language': en_us.id,
+            'currency': usd.id,
+        }])
         self.NereidWebsite.create([{
             'name': 'localhost',
             'url_map': url_map.id,
             'company': company.id,
             'application_user': USER,
-            'default_language': en_us.id,
+            'default_locale': self.locale_en_us.id,
             'guest_user': guest_user.id,
             'currencies': [('set', [usd.id])],
         }])
@@ -241,12 +248,12 @@ class ActivityTestCase(NereidTestCase):
 
             with app.test_client() as c:
                 # Login success
-                rv = c.post('/en_US/login', data=login_data)
-                self.assertEqual(rv.location, 'http://localhost/en_US/')
+                rv = c.post('/login', data=login_data)
+                self.assertEqual(rv.location, 'http://localhost/?locale=en_US')
                 self.assertEqual(rv.status_code, 302)
 
                 # Stream Length Count
-                rv = c.get('en_US/user/activity-stream')
+                rv = c.get('/user/activity-stream')
                 rv_json = json.loads(rv.data)
                 self.assertEqual(rv_json['totalItems'], 3)
 
@@ -276,12 +283,12 @@ class ActivityTestCase(NereidTestCase):
 
             with app.test_client() as c:
                 # Login success
-                rv = c.post('/en_US/login', data=login_data)
-                self.assertEqual(rv.location, 'http://localhost/en_US/')
+                rv = c.post('/login', data=login_data)
+                self.assertEqual(rv.location, 'http://localhost/?locale=en_US')
                 self.assertEqual(rv.status_code, 302)
 
                 # Stream Length Count
-                rv = c.get('en_US/user/activity-stream')
+                rv = c.get('/user/activity-stream')
                 rv_json = json.loads(rv.data)
                 self.assertEqual(rv_json['totalItems'], 4)
 
@@ -289,12 +296,12 @@ class ActivityTestCase(NereidTestCase):
 
             with app.test_client() as c:
                 # Login success
-                rv = c.post('/en_US/login', data=login_data)
-                self.assertEqual(rv.location, 'http://localhost/en_US/')
+                rv = c.post('/login', data=login_data)
+                self.assertEqual(rv.location, 'http://localhost/?locale=en_US')
                 self.assertEqual(rv.status_code, 302)
 
                 # Stream Length Count
-                rv = c.get('en_US/user/activity-stream')
+                rv = c.get('/user/activity-stream')
                 rv_json = json.loads(rv.data)
                 self.assertEqual(rv_json['totalItems'], 3)
 
@@ -331,7 +338,7 @@ class ActivityTestCase(NereidTestCase):
 
             with app.test_client() as c:
                 # Get public activity stream
-                rv = c.get('/en_US/activity-stream')
+                rv = c.get('/activity-stream')
                 rv_json = json.loads(rv.data)
 
                 # No activity stream available publicly
