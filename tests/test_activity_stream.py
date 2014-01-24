@@ -2,7 +2,7 @@
 """
     Test activity
 
-    :copyright: (c) 2013 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
 import sys
@@ -249,7 +249,7 @@ class ActivityTestCase(NereidTestCase):
             with app.test_client() as c:
                 # Login success
                 rv = c.post('/login', data=login_data)
-                self.assertEqual(rv.location, 'http://localhost/?locale=en_US')
+                self.assertEqual(rv.location, 'http://localhost/')
                 self.assertEqual(rv.status_code, 302)
 
                 # Stream Length Count
@@ -284,7 +284,7 @@ class ActivityTestCase(NereidTestCase):
             with app.test_client() as c:
                 # Login success
                 rv = c.post('/login', data=login_data)
-                self.assertEqual(rv.location, 'http://localhost/?locale=en_US')
+                self.assertEqual(rv.location, 'http://localhost/')
                 self.assertEqual(rv.status_code, 302)
 
                 # Stream Length Count
@@ -297,7 +297,7 @@ class ActivityTestCase(NereidTestCase):
             with app.test_client() as c:
                 # Login success
                 rv = c.post('/login', data=login_data)
-                self.assertEqual(rv.location, 'http://localhost/?locale=en_US')
+                self.assertEqual(rv.location, 'http://localhost/')
                 self.assertEqual(rv.status_code, 302)
 
                 # Stream Length Count
