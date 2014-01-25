@@ -4,7 +4,7 @@
 
     Activity Stream module.
 
-    :copyright: (c) 2013 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
 from trytond.model import ModelSQL, ModelView, fields
@@ -62,11 +62,24 @@ class Activity(ModelSQL, ModelView):
     score = fields.Function(
         fields.Integer('Score'), 'get_score'
     )
+    event_time = fields.Function(
+        fields.Char('Event Time'), 'get_event_time'
+    )
 
     @classmethod
     def __setup__(cls):
         super(Activity, cls).__setup__()
         cls._order = [('create_date', 'DESC')]
+
+    @classmethod
+    def get_event_time(cls, records, name):
+        """
+            Returns event time of current activity
+        """
+        res = {}
+        for record in records:
+            res[record.id] = str(record.create_date)
+        return res
 
     def get_score(self, name):
         """
