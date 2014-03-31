@@ -25,7 +25,7 @@ class NereidUser:
         'nereid.activity', 'actor', 'Activities'
     )
 
-    def _json(self):
+    def serialize(self, purpose=None):
         """
         Serialize the actor alone and return a dictionary. This is separated
         so that other modules can easily modify the behavior independent of
@@ -129,7 +129,7 @@ class Activity(ModelSQL, ModelView):
 
         response_json = {
             "published": self.create_date.isoformat(),
-            "actor": self.actor._json(),
+            "actor": self.actor.serialize('activity_stream'),
             "verb": self.verb,
         }
 
@@ -140,7 +140,7 @@ class Activity(ModelSQL, ModelView):
             # a read error
             return None
         else:
-            response_json["object"] = self.object_._json()
+            response_json["object"] = self.object_.serialize('activity_stream')
 
         if self.target:
             try:
@@ -150,7 +150,9 @@ class Activity(ModelSQL, ModelView):
                 # a read error
                 return None
             else:
-                response_json["target"] = self.target._json()
+                response_json["target"] = self.target.serialize(
+                    'activity_stream'
+                )
 
         return response_json
 
