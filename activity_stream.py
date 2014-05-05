@@ -11,7 +11,7 @@ from trytond.model import ModelSQL, ModelView, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.exceptions import UserError
 
-from nereid import request, jsonify, login_required
+from nereid import request, jsonify, login_required, route
 
 __all__ = ['NereidUser', 'Activity', 'ActivityAllowedModel']
 __metaclass__ = PoolMeta
@@ -25,7 +25,7 @@ class NereidUser:
         'nereid.activity', 'actor', 'Activities'
     )
 
-    def _json(self):
+    def serialize(self, purpose=None):
         """
         Serialize the actor alone and return a dictionary. This is separated
         so that other modules can easily modify the behavior independent of
@@ -129,7 +129,7 @@ class Activity(ModelSQL, ModelView):
 
         response_json = {
             "published": self.create_date.isoformat(),
-            "actor": self.actor._json(),
+            "actor": self.actor.serialize('activity_stream'),
             "verb": self.verb,
         }
 
@@ -140,7 +140,7 @@ class Activity(ModelSQL, ModelView):
             # a read error
             return None
         else:
-            response_json["object"] = self.object_._json()
+            response_json["object"] = self.object_.serialize('activity_stream')
 
         if self.target:
             try:
@@ -150,7 +150,9 @@ class Activity(ModelSQL, ModelView):
                 # a read error
                 return None
             else:
-                response_json["target"] = self.target._json()
+                response_json["target"] = self.target.serialize(
+                    'activity_stream'
+                )
 
         return response_json
 
@@ -173,6 +175,7 @@ class Activity(ModelSQL, ModelView):
         ]
 
     @classmethod
+    @route('/activity-stream')
     def public_stream(cls):
         '''
         Returns activity stream for public user
@@ -193,6 +196,7 @@ class Activity(ModelSQL, ModelView):
         })
 
     @classmethod
+    @route('/user/activity-stream')
     @login_required
     def stream(cls):
         '''
