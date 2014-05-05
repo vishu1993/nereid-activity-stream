@@ -11,7 +11,7 @@ from trytond.model import ModelSQL, ModelView, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.exceptions import UserError
 
-from nereid import request, jsonify, login_required
+from nereid import request, jsonify, login_required, route
 
 __all__ = ['NereidUser', 'Activity', 'ActivityAllowedModel']
 __metaclass__ = PoolMeta
@@ -175,6 +175,7 @@ class Activity(ModelSQL, ModelView):
         ]
 
     @classmethod
+    @route('/activity-stream')
     def public_stream(cls):
         '''
         Returns activity stream for public user
@@ -195,6 +196,7 @@ class Activity(ModelSQL, ModelView):
         })
 
     @classmethod
+    @route('/user/activity-stream')
     @login_required
     def stream(cls):
         '''
