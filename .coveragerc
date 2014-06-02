@@ -1,0 +1,5 @@
+[run]
+source = trytond.modules.nereid_activity_stream
+
+[report]
+omit = */tests/*, */fabfile.py
