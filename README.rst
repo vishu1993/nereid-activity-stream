@@ -4,7 +4,7 @@ nereid-activity-stream
 .. image:: https://travis-ci.org/openlabs/nereid-activity-stream.png?branch=develop
   :target: https://travis-ci.org/openlabs/nereid-activity-stream
 
-.. image:: https://coveralls.io/repos/openlabs/nereid-activity-stream/badge.png
+.. image:: https://coveralls.io/repos/openlabs/nereid-activity-stream/badge.png?branch=develop
   :target: https://coveralls.io/r/openlabs/nereid-activity-stream
 
 :Authors:
