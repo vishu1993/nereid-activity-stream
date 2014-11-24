@@ -77,13 +77,6 @@ class ActivityTestCase(NereidTestCase):
         }, {
             'name': 'Registered User',
         }])
-        guest_user, = self.NereidUser.create([{
-            'party': guest_party.id,
-            'display_name': 'Guest User',
-            'email': 'guest@openlabs.co.in',
-            'password': 'password',
-            'company': company.id,
-        }])
         self.registered_user, = self.NereidUser.create([{
             'party': registered_party.id,
             'display_name': 'Registered User',
@@ -107,8 +100,7 @@ class ActivityTestCase(NereidTestCase):
             'company': company.id,
             'application_user': USER,
             'default_locale': self.locale_en_us.id,
-            'guest_user': guest_user.id,
-            'currencies': [('set', [usd.id])],
+            'currencies': [('add', [usd.id])],
         }])
 
         self.user_party, = self.Party.create([{

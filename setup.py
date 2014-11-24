@@ -1,23 +1,28 @@
-#!/usr/bin/env python
-# This file is part of Tryton.  The COPYRIGHT file at the top level of
-# this repository contains the full copyright notices and license terms.
+# -*- coding: utf-8 -*-
+"""
+    Nereid Activity Stream
 
-from setuptools import setup, Command
+    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
+    :license: GPLv3, see LICENSE for more details.
+"""
+import sys
 import re
 import os
 import ConfigParser
+import unittest
+from setuptools import setup, Command
 
 
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
-class RunAudit(Command):
-    """Audits source code using PyFlakes for following issues:
-        - Names which are used but not defined or used before they are defined.
-        - Names which are redefined without having been used.
+class SQLiteTest(Command):
     """
-    description = "Audit source code with PyFlakes"
+    Run the tests on SQLite
+    """
+    description = "Run tests on SQLite"
+
     user_options = []
 
     def initialize_options(self):
@@ -27,28 +32,20 @@ class RunAudit(Command):
         pass
 
     def run(self):
-        import os
-        import sys
-        try:
-            import pyflakes.scripts.pyflakes as flakes
-        except ImportError:
-            print "Audit requires PyFlakes installed in your system."
-            sys.exit(-1)
 
-        warns = 0
-        # Define top-level directories
-        dirs = ('.')
-        for dir in dirs:
-            for root, _, files in os.walk(dir):
-                if root.startswith(('./build')):
-                    continue
-                for file in files:
-                    if file != '__init__.py' and file.endswith('.py'):
-                        warns += flakes.checkPath(os.path.join(root, file))
-        if warns > 0:
-            print "Audit finished with total %d warnings." % warns
-        else:
-            print "No problems found in sourcecode."
+        if self.distribution.tests_require:
+            self.distribution.fetch_build_eggs(self.distribution.tests_require)
+
+        from trytond.config import CONFIG
+        CONFIG['db_type'] = 'sqlite'
+        os.environ['DB_NAME'] = ':memory:'
+
+        from tests import suite
+        test_result = unittest.TextTestRunner(verbosity=3).run(suite())
+
+        if test_result.wasSuccessful():
+            sys.exit(0)
+        sys.exit(-1)
 
 
 config = ConfigParser.ConfigParser()
@@ -61,9 +58,8 @@ major_version, minor_version, _ = info.get('version', '0.0.1').split('.', 2)
 major_version = int(major_version)
 minor_version = int(minor_version)
 
-requires = [
-    'trytond_nereid>=3.0.7.0, <3.1',
-]
+requires = []
+
 for dep in info.get('depends', []):
     if not re.match(r'(ir|res|webdav)(\W|$)', dep):
         requires.append(
@@ -112,8 +108,8 @@ setup(
     nereid_blog = trytond.modules.nereid_activity_stream
     """,
     test_suite='tests.suite',
-    cmdclass={
-        'audit': RunAudit,
-    },
     test_loader='trytond.test_loader:Loader',
+    cmdclass={
+        'test': SQLiteTest,
+    },
 )
