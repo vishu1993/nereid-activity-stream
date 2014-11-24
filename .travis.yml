@@ -2,16 +2,17 @@ language: python
 virtualenv:
   system_site_packages: true
 python:
-  - "2.6"
-before_install:
-  - sudo apt-get install python-lxml
-  - sudo apt-get install python-dev libevent-dev
+  - "2.7"
+before_install: "sudo apt-get install python-dev libevent-dev"
 install:
   - pip install flake8
   - python setup.py install
+  - pip install coveralls
 script:
-- python setup.py test
+- coverage run setup.py test
 - flake8 .
+after_success:
+  coveralls
 notifications:
   email:
     - tarun.bhardwaj@openlabs.co.in
