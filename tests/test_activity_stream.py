@@ -2,7 +2,7 @@
 """
     Test activity
 
-    :copyright: (c) 2013-2014 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: (c) 2013-2015 by Openlabs Technologies & Consulting (P) Limited
     :license: GPLv3, see LICENSE for more details.
 """
 import sys
@@ -39,7 +39,6 @@ class ActivityTestCase(NereidTestCase):
         self.Currency = POOL.get('currency.currency')
         self.ActivityAllowedModel = POOL.get('nereid.activity.allowed_model')
         self.Model = POOL.get('ir.model')
-        self.UrlMap = POOL.get('nereid.url_map')
         self.Language = POOL.get('ir.lang')
         self.NereidWebsite = POOL.get('nereid.website')
         self.Locale = POOL.get('nereid.website.locale')
@@ -86,7 +85,6 @@ class ActivityTestCase(NereidTestCase):
         }])
 
         # Create website
-        url_map, = self.UrlMap.search([], limit=1)
         en_us, = self.Language.search([('code', '=', 'en_US')], limit=1)
 
         self.locale_en_us, = self.Locale.create([{
@@ -96,7 +94,6 @@ class ActivityTestCase(NereidTestCase):
         }])
         self.NereidWebsite.create([{
             'name': 'localhost',
-            'url_map': url_map.id,
             'company': company.id,
             'application_user': USER,
             'default_locale': self.locale_en_us.id,
