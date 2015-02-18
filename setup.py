@@ -75,7 +75,7 @@ setup(
     name='trytond_nereid_activity_stream',
     version=info.get('version', '0.0.1'),
     description='Activity Stream (a.k.a news feed) for Tryton nereid',
-    long_description=open('README.md').read(),
+    long_description=open('README.rst').read(),
     author='Openlabs Technologies & consulting (P) Limited',
     author_email='info@openlabs.co.in',
     url='https://github.com/openlabs/nereid-activity-stream',
