@@ -85,8 +85,8 @@ setup(
         'trytond.modules.nereid_activity_stream.tests',
     ],
     package_data={
-        'trytond.modules.nereid_activity_stream': info.get('xml', [])
-        + info.get('translation', []) + ['tryton.cfg'],
+        'trytond.modules.nereid_activity_stream': info.get('xml', []) +
+        info.get('translation', []) + ['tryton.cfg'],
     },
     classifiers=[
         'Development Status :: 4 - Beta',
